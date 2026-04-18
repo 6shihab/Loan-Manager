@@ -14,6 +14,7 @@ import { useLanguage } from './contexts/LanguageContext';
 import { Toaster, toast } from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import { getActiveAmount } from './utils/calculations';
+import { App as CapApp } from '@capacitor/app';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'settings'>('dashboard');
@@ -56,6 +57,44 @@ function App() {
   useEffect(() => {
     localStorage.setItem('bm_defaultCurrency', defaultCurrency);
   }, [defaultCurrency]);
+
+  // Android hardware back button handler
+  useEffect(() => {
+    const listener = CapApp.addListener('backButton', () => {
+      // Close modals/overlays in priority order
+      if (appLock.isSettingUp) {
+        appLock.setIsSettingUp(false);
+        return;
+      }
+      if (sharedSettlement) {
+        setSharedSettlement(null);
+        return;
+      }
+      if (settlingTx) {
+        setSettlingTx(null);
+        return;
+      }
+      if (isTrashModalOpen) {
+        setIsTrashModalOpen(false);
+        return;
+      }
+      if (isAddModalOpen) {
+        setIsAddModalOpen(false);
+        return;
+      }
+      // Navigate back to dashboard from other tabs
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        return;
+      }
+      // Already on dashboard, no modals — minimize (don't exit)
+      CapApp.minimizeApp();
+    });
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [activeTab, isAddModalOpen, isTrashModalOpen, settlingTx, sharedSettlement, appLock.isSettingUp]);
 
   const handleAddSubmit = (tx: any) => {
     addTransaction(tx);

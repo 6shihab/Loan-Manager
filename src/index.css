@@ -16,18 +16,19 @@
   }
 }
 
-/* Base resets & custom scrollbar */
+/* Base resets */
 html, body {
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
+  overscroll-behavior: none;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+/* Hide all scrollbars while keeping scroll functionality */
+* {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+
+*::-webkit-scrollbar {
+  display: none;             /* Chrome/Safari/Android */
 }

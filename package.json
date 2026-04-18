@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
+    "@capacitor/app": "^6.0.3",
     "@capacitor/core": "^6.2.1",
     "date-fns": "^3.6.0",
     "framer-motion": "^11.3.17",
