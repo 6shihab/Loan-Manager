@@ -223,38 +223,41 @@ function App() {
 
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+          <div key="add-modal" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
             <div className="w-full max-w-lg max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
-              <TransactionForm 
-                onSubmit={handleAddSubmit} 
-                onCancel={() => setIsAddModalOpen(false)} 
-                existingNames={existingNames} 
-                defaultCurrency={defaultCurrency} 
+              <TransactionForm
+                onSubmit={handleAddSubmit}
+                onCancel={() => setIsAddModalOpen(false)}
+                existingNames={existingNames}
+                defaultCurrency={defaultCurrency}
               />
             </div>
           </div>
         )}
 
         {settlingTx && (
-          <SettleModal 
-            transaction={settlingTx} 
-            onClose={() => setSettlingTx(null)} 
+          <SettleModal
+            key="settle-modal"
+            transaction={settlingTx}
+            onClose={() => setSettlingTx(null)}
             onSubmit={async (amount, attachmentId) => {
               handleSettle(settlingTx.id, amount, attachmentId);
               setSettlingTx(null);
-            }} 
+            }}
           />
         )}
 
         {sharedSettlement && (
-          <SettlementShareCard 
-            receipt={sharedSettlement} 
-            onClose={() => setSharedSettlement(null)} 
+          <SettlementShareCard
+            key="share-card"
+            receipt={sharedSettlement}
+            onClose={() => setSharedSettlement(null)}
           />
         )}
 
         {isTrashModalOpen && (
-          <TrashModal 
+          <TrashModal
+            key="trash-modal"
             transactions={trashTransactions}
             onClose={() => setIsTrashModalOpen(false)}
             onRestore={id => {
