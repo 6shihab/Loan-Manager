@@ -150,6 +150,15 @@ function App() {
     }, 500);
   };
 
+  const handleShareSettled = (tx: any) => {
+    const totalSettled = tx.settlements?.reduce((sum: number, s: { amount: number }) => sum + s.amount, 0) ?? tx.amount;
+    setSharedSettlement({
+      tx,
+      amount: totalSettled,
+      isFull: tx.status === 'settled',
+    });
+  };
+
   const handleDelete = (id: string) => {
     deleteTransaction(id);
     toast('Transaction deleted', {
@@ -194,11 +203,12 @@ function App() {
       {/* Main Content Body */}
       <main className="px-4 max-w-lg mx-auto">
         {activeTab === 'dashboard' ? (
-          <Dashboard 
-            transactions={transactions} 
-            onDelete={handleDelete} 
-            onSettle={handleSettle} 
+          <Dashboard
+            transactions={transactions}
+            onDelete={handleDelete}
+            onSettle={handleSettle}
             onInitiateSettle={setSettlingTx}
+            onShareSettled={handleShareSettled}
           />
         ) : activeTab === 'timeline' ? (
           <Timeline transactions={transactions} />

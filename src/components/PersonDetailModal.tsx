@@ -10,9 +10,10 @@ interface PersonDetailModalProps {
   onClose: () => void;
   onSettleAll: (person: string) => void;
   onDelete: (id: string) => void;
+  onShareSettled?: (tx: Transaction) => void;
 }
 
-export function PersonDetailModal({ person, transactions, onClose, onSettleAll, onDelete }: PersonDetailModalProps) {
+export function PersonDetailModal({ person, transactions, onClose, onSettleAll, onDelete, onShareSettled }: PersonDetailModalProps) {
   const { t } = useLanguage();
   
   const net = transactions.reduce((acc, tx) => {
@@ -53,9 +54,10 @@ export function PersonDetailModal({ person, transactions, onClose, onSettleAll, 
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 scrollbar-none">
-          <TransactionList 
-            transactions={transactions} 
-            onDelete={onDelete} 
+          <TransactionList
+            transactions={transactions}
+            onDelete={onDelete}
+            onShare={onShareSettled}
           />
         </div>
 

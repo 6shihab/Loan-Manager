@@ -14,9 +14,10 @@ interface DashboardProps {
   onDelete: (id: string) => void;
   onSettle: (id: string, amount?: number, attachmentId?: string) => void;
   onInitiateSettle: (tx: Transaction) => void;
+  onShareSettled: (tx: Transaction) => void;
 }
 
-export function Dashboard({ transactions, onDelete, onSettle, onInitiateSettle }: DashboardProps) {
+export function Dashboard({ transactions, onDelete, onSettle, onInitiateSettle, onShareSettled }: DashboardProps) {
   const { t } = useLanguage();
   const summary = useMemo(() => calculateSummary(transactions), [transactions]);
   const personBalances = useMemo(() => calculatePersonBalances(transactions), [transactions]);
@@ -94,10 +95,11 @@ export function Dashboard({ transactions, onDelete, onSettle, onInitiateSettle }
           </div>
         </div>
 
-        <TransactionList 
-          transactions={filteredTransactions} 
-          onDelete={onDelete} 
-          onInitiateSettle={onInitiateSettle} 
+        <TransactionList
+          transactions={filteredTransactions}
+          onDelete={onDelete}
+          onInitiateSettle={onInitiateSettle}
+          onShare={onShareSettled}
         />
       </section>
 
@@ -109,6 +111,7 @@ export function Dashboard({ transactions, onDelete, onSettle, onInitiateSettle }
             onClose={() => setSelectedPerson(null)}
             onSettleAll={handleSettleAll}
             onDelete={onDelete}
+            onShareSettled={onShareSettled}
           />
         )}
       </AnimatePresence>
