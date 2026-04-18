@@ -224,7 +224,7 @@ function App() {
       <AnimatePresence>
         {isAddModalOpen && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
-            <div className="w-full max-w-lg h-full sm:h-auto sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
+            <div className="w-full max-w-lg max-h-[100dvh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <TransactionForm 
                 onSubmit={handleAddSubmit} 
                 onCancel={() => setIsAddModalOpen(false)} 
