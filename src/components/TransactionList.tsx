@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Transaction } from '../types';
-import { Trash2, AlertCircle, CheckCircle2, ArrowUpRight, ArrowDownLeft, ArchiveX, Paperclip } from 'lucide-react';
+import { Trash2, AlertCircle, CheckCircle2, ArrowUpRight, ArrowDownLeft, ArchiveX, Paperclip, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AttachmentViewer, AttachmentEntry } from './AttachmentViewer';
@@ -11,6 +11,7 @@ interface TransactionListProps {
   transactions: Transaction[];
   onDelete: (id: string) => void;
   onInitiateSettle?: (tx: Transaction) => void;
+  onShare?: (tx: Transaction) => void;
 }
 
 function collectAttachments(tx: Transaction): AttachmentEntry[] {
@@ -30,7 +31,7 @@ function collectAttachments(tx: Transaction): AttachmentEntry[] {
   return entries;
 }
 
-export function TransactionList({ transactions, onDelete, onInitiateSettle }: TransactionListProps) {
+export function TransactionList({ transactions, onDelete, onInitiateSettle, onShare }: TransactionListProps) {
   const { t } = useLanguage();
   const [viewing, setViewing] = useState<AttachmentEntry[] | null>(null);
 
@@ -54,9 +55,11 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
     <ul className="space-y-3 pb-6">
       {transactions.map((tx) => {
         const isBorrowed = tx.type === 'borrowed';
-        
+        const isSettled = tx.status === 'settled';
+        const entries = collectAttachments(tx);
+
         return (
-          <li key={tx.id} className="relative group rounded-3xl overflow-hidden w-full touch-pan-y">
+          <li key={tx.id} className={`relative group rounded-3xl overflow-hidden w-full touch-pan-y ${isSettled ? 'opacity-60' : ''}`}>
             {/* Background actions revealed on swipe */}
             <div className="absolute inset-0 flex justify-between items-center px-6 bg-gray-100 dark:bg-gray-800 rounded-3xl z-0">
               <div className="flex-1 flex justify-start items-center text-emerald-500 font-bold">
@@ -67,7 +70,7 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
               </div>
             </div>
 
-            <motion.div 
+            <motion.div
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
@@ -78,21 +81,37 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
                   onDelete(tx.id);
                 }
               }}
-              className="relative z-10 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-3xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:shadow-lg transition-shadow flex items-center justify-between"
+              className={`relative z-10 border p-4 rounded-3xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] hover:shadow-lg transition-shadow flex items-center justify-between ${
+                isSettled
+                  ? 'bg-gray-50 dark:bg-gray-900/40 border-gray-100 dark:border-gray-800'
+                  : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800'
+              }`}
             >
               <div className="flex items-center space-x-4 flex-1">
-                <div className={`p-3 rounded-2xl flex-shrink-0 ${isBorrowed ? 'bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400' : 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400'}`}>
+                <div className={`p-3 rounded-2xl flex-shrink-0 ${
+                  isSettled
+                    ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
+                    : isBorrowed
+                      ? 'bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:text-rose-400'
+                      : 'bg-emerald-50 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400'
+                }`}>
                   {isBorrowed ? <ArrowDownLeft size={20} className="stroke-[3]" /> : <ArrowUpRight size={20} className="stroke-[3]" />}
                 </div>
-                
+
                 <div className="flex flex-col flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-bold text-gray-800 dark:text-gray-100">{tx.person}</span>
-                    <span className={`font-extrabold ${tx.status === 'settled' ? 'text-gray-400 dark:text-gray-500' : isBorrowed ? 'text-rose-500 dark:text-rose-400' : 'text-emerald-500 dark:text-emerald-400'}`}>
+                    <span className={`font-bold ${isSettled ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100'}`}>{tx.person}</span>
+                    <span className={`font-extrabold ${
+                      isSettled
+                        ? 'line-through text-gray-400 dark:text-gray-500'
+                        : isBorrowed
+                          ? 'text-rose-500 dark:text-rose-400'
+                          : 'text-emerald-500 dark:text-emerald-400'
+                    }`}>
                       {isBorrowed ? '-' : '+'}{tx.amount.toFixed(2)} {tx.currency}
                     </span>
                   </div>
-                  
+
                   <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 mt-1">
                     <div className="flex items-center gap-3">
                       <span>{new Date(tx.date).toLocaleDateString()}</span>
@@ -111,10 +130,8 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
                       )}
                     </div>
                     {tx.note && <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 line-clamp-1 italic">{tx.note}</span>}
-                    {(() => {
-                      const entries = collectAttachments(tx);
-                      if (entries.length === 0) return null;
-                      return (
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
+                      {entries.length > 0 && (
                         <button
                           type="button"
                           onPointerDownCapture={(e) => e.stopPropagation()}
@@ -122,12 +139,26 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
                             e.stopPropagation();
                             setViewing(entries);
                           }}
-                          className="self-start flex items-center gap-1 text-xs text-indigo-500 dark:text-fuchsia-400 mt-1 font-semibold hover:text-indigo-700 dark:hover:text-fuchsia-300 active:scale-95 transition"
+                          className="self-start flex items-center gap-1 text-xs text-indigo-500 dark:text-fuchsia-400 font-semibold hover:text-indigo-700 dark:hover:text-fuchsia-300 active:scale-95 transition"
                         >
                           <Paperclip size={12} /> View Attachment{entries.length > 1 ? `s (${entries.length})` : ''}
                         </button>
-                      );
-                    })()}
+                      )}
+                      {isSettled && onShare && (
+                        <button
+                          type="button"
+                          aria-label="Share receipt"
+                          onPointerDownCapture={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onShare(tx);
+                          }}
+                          className="flex items-center gap-1 text-xs text-indigo-500 dark:text-fuchsia-400 font-semibold hover:text-indigo-700 dark:hover:text-fuchsia-300 active:scale-95 transition p-1.5 -m-1.5"
+                        >
+                          <Share2 size={14} /> Share receipt
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -136,9 +167,9 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
         );
       })}
     </ul>
-      {viewing && (
-        <AttachmentViewer attachments={viewing} onClose={() => setViewing(null)} />
-      )}
+    {viewing && (
+      <AttachmentViewer attachments={viewing} onClose={() => setViewing(null)} />
+    )}
     </>
   );
 }
