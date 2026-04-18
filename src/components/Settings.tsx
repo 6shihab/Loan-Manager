@@ -15,12 +15,13 @@ interface SettingsProps {
   isPinEnabled: boolean;
   biometricEnabled: boolean;
   biometricAvailable: boolean;
+  biometricLabel: string;
   onSetupPin: () => void;
   onRemovePin: () => void;
   onToggleBiometric: (val: boolean) => void;
 }
 
-export function Settings({ isDarkMode, setIsDarkMode, defaultCurrency, setDefaultCurrency, transactions, onClearData, isPinEnabled, biometricEnabled, biometricAvailable, onSetupPin, onRemovePin, onToggleBiometric }: SettingsProps) {
+export function Settings({ isDarkMode, setIsDarkMode, defaultCurrency, setDefaultCurrency, transactions, onClearData, isPinEnabled, biometricEnabled, biometricAvailable, biometricLabel, onSetupPin, onRemovePin, onToggleBiometric }: SettingsProps) {
   const { t, language, setLanguage } = useLanguage();
 
   const handleClearData = () => {
@@ -146,7 +147,7 @@ export function Settings({ isDarkMode, setIsDarkMode, defaultCurrency, setDefaul
             <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-800 pt-4">
               <div className="flex items-center gap-2">
                 <Fingerprint size={18} className="text-gray-500" />
-                <span className="font-semibold text-gray-800 dark:text-gray-200">Biometric Unlock</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{biometricLabel}</span>
               </div>
               <button
                 onClick={() => onToggleBiometric(!biometricEnabled)}

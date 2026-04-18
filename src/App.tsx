@@ -213,6 +213,7 @@ function App() {
             isPinEnabled={appLock.isPinEnabled}
             biometricEnabled={appLock.biometricEnabled}
             biometricAvailable={appLock.biometricAvailable}
+            biometricLabel={appLock.biometricLabel}
             onSetupPin={() => appLock.setIsSettingUp(true)}
             onRemovePin={appLock.removePin}
             onToggleBiometric={appLock.toggleBiometric}

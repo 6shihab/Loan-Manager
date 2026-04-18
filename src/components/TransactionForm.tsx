@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { ArrowDownLeft, ArrowUpRight, Paperclip, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { TransactionType } from '../types';
@@ -24,6 +24,29 @@ export function TransactionForm({ onSubmit, onCancel, existingNames, defaultCurr
   const [note, setNote] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const personWrapperRef = useRef<HTMLDivElement>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const nameSuggestions = useMemo(() => {
+    const query = person.trim().toLowerCase();
+    const unique = Array.from(new Set(existingNames.filter(Boolean)));
+    if (!query) return unique.slice(0, 8);
+    return unique
+      .filter(n => n.toLowerCase().includes(query) && n.toLowerCase() !== query)
+      .slice(0, 8);
+  }, [person, existingNames]);
+
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const handleDocPointer = (e: PointerEvent) => {
+      if (!personWrapperRef.current) return;
+      if (!personWrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleDocPointer);
+    return () => document.removeEventListener('pointerdown', handleDocPointer);
+  }, [showSuggestions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,22 +120,47 @@ export function TransactionForm({ onSubmit, onCancel, existingNames, defaultCurr
         </div>
 
         <div className="space-y-5">
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" ref={personWrapperRef}>
             <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-1">{t('personName')} *</label>
-            <input
-              type="text"
-              required
-              list="existing-names"
-              value={person}
-              onChange={(e) => setPerson(e.target.value)}
-              placeholder={t('personPlaceholder')}
-              className="w-full bg-white/50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 font-medium focus:outline-none focus:border-indigo-500 dark:focus:border-fuchsia-500 transition-colors focus:ring-1 focus:ring-indigo-500"
-            />
-            <datalist id="existing-names">
-              {existingNames.map(name => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <input
+                type="text"
+                required
+                value={person}
+                onChange={(e) => {
+                  setPerson(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder={t('personPlaceholder')}
+                className="w-full bg-white/50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 font-medium focus:outline-none focus:border-indigo-500 dark:focus:border-fuchsia-500 transition-colors focus:ring-1 focus:ring-indigo-500"
+              />
+              {showSuggestions && nameSuggestions.length > 0 && (
+                <ul
+                  role="listbox"
+                  className="absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg overscroll-contain"
+                >
+                  {nameSuggestions.map(name => (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          setPerson(name);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-fuchsia-500/10 active:bg-indigo-100 dark:active:bg-fuchsia-500/20 transition-colors"
+                      >
+                        {name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-4">

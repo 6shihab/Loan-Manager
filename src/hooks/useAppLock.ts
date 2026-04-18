@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { hashPin } from '../components/PinLockScreen';
+import { NativeBiometric, BiometryType } from 'capacitor-native-biometric';
 
 const STORAGE_KEY = 'bm_pin_hash';
 const BIOMETRIC_KEY = 'bm_biometric_enabled';
@@ -9,17 +10,22 @@ export function useAppLock() {
   const [pinHash, setPinHash] = useState<string | null>(() => localStorage.getItem(STORAGE_KEY));
   const [biometricEnabled, setBiometricEnabled] = useState(() => localStorage.getItem(BIOMETRIC_KEY) === 'true');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometryType, setBiometryType] = useState<BiometryType>(BiometryType.NONE);
   const [isSettingUp, setIsSettingUp] = useState(false);
 
   const isPinEnabled = pinHash !== null;
 
-  // Check WebAuthn availability
+  // Check native biometric availability
   useEffect(() => {
-    if (window.PublicKeyCredential) {
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then(available => setBiometricAvailable(available))
-        .catch(() => setBiometricAvailable(false));
-    }
+    NativeBiometric.isAvailable()
+      .then((result) => {
+        setBiometricAvailable(result.isAvailable);
+        setBiometryType(result.biometryType);
+      })
+      .catch(() => {
+        setBiometricAvailable(false);
+        setBiometryType(BiometryType.NONE);
+      });
   }, []);
 
   // Lock on app load if PIN is set
@@ -43,6 +49,17 @@ export function useAppLock() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [isPinEnabled]);
 
+  // Auto-trigger biometric on lock if enabled
+  useEffect(() => {
+    if (isLocked && isPinEnabled && biometricEnabled && biometricAvailable) {
+      // Small delay so the lock screen renders first
+      const timer = setTimeout(() => {
+        attemptBiometric();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isLocked]);
+
   const unlock = useCallback(() => {
     setIsLocked(false);
   }, []);
@@ -63,47 +80,56 @@ export function useAppLock() {
     setIsLocked(false);
   }, []);
 
-  const toggleBiometric = useCallback((val: boolean) => {
-    localStorage.setItem(BIOMETRIC_KEY, String(val));
-    setBiometricEnabled(val);
+  const toggleBiometric = useCallback(async (val: boolean) => {
+    if (val) {
+      // Verify biometric works before enabling
+      try {
+        await NativeBiometric.verifyIdentity({
+          reason: 'Verify to enable biometric unlock',
+          title: 'Enable Biometric',
+          subtitle: 'Confirm your identity',
+          description: 'Use your fingerprint or face to unlock Borrow Manager',
+        });
+        localStorage.setItem(BIOMETRIC_KEY, 'true');
+        setBiometricEnabled(true);
+      } catch {
+        // User cancelled or biometric failed — don't enable
+        console.log('Biometric verification failed, not enabling');
+      }
+    } else {
+      localStorage.setItem(BIOMETRIC_KEY, 'false');
+      setBiometricEnabled(false);
+    }
   }, []);
 
   const attemptBiometric = useCallback(async (): Promise<boolean> => {
     if (!biometricAvailable || !biometricEnabled) return false;
 
     try {
-      // Use WebAuthn for platform authenticator (fingerprint/face)
-      const challenge = new Uint8Array(32);
-      crypto.getRandomValues(challenge);
-
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp: { name: 'Borrow Manager', id: window.location.hostname || 'localhost' },
-          user: {
-            id: new Uint8Array(16),
-            name: 'user@borrowmanager',
-            displayName: 'Borrow Manager User'
-          },
-          pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            userVerification: 'required'
-          },
-          timeout: 60000
-        }
+      await NativeBiometric.verifyIdentity({
+        reason: 'Unlock Borrow Manager',
+        title: 'Unlock App',
+        subtitle: 'Use biometric to unlock',
+        description: 'Place your finger on the sensor or look at the camera',
+        useFallback: false, // Don't show device PIN fallback — user can use our PIN
+        maxAttempts: 3,
       });
-
-      if (credential) {
-        unlock();
-        return true;
-      }
+      // Biometric passed!
+      unlock();
+      return true;
     } catch {
-      // Biometric failed or dismissed
+      // Biometric failed or dismissed — user can still enter PIN
       console.log('Biometric authentication failed or was cancelled');
     }
     return false;
   }, [biometricAvailable, biometricEnabled, unlock]);
+
+  // Get a user-friendly label for the biometric type
+  const biometricLabel = biometryType === BiometryType.FACE_AUTHENTICATION 
+    ? 'Face Unlock' 
+    : biometryType === BiometryType.IRIS_AUTHENTICATION
+    ? 'Iris Unlock'
+    : 'Fingerprint Unlock';
 
   return {
     isLocked,
@@ -111,6 +137,8 @@ export function useAppLock() {
     pinHash,
     biometricEnabled,
     biometricAvailable,
+    biometricLabel,
+    biometryType,
     isSettingUp,
     setIsSettingUp,
     unlock,

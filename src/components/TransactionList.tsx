@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Transaction } from '../types';
 import { Trash2, AlertCircle, CheckCircle2, ArrowUpRight, ArrowDownLeft, ArchiveX, Paperclip } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../contexts/LanguageContext';
+import { AttachmentViewer, AttachmentEntry } from './AttachmentViewer';
 
 import { getActiveAmount } from '../utils/calculations';
 
@@ -11,8 +13,26 @@ interface TransactionListProps {
   onInitiateSettle?: (tx: Transaction) => void;
 }
 
+function collectAttachments(tx: Transaction): AttachmentEntry[] {
+  const entries: AttachmentEntry[] = [];
+  if (tx.attachmentId) {
+    entries.push({ id: tx.attachmentId, label: 'Original transaction' });
+  }
+  tx.settlements?.forEach((s, idx) => {
+    if (s.attachmentId) {
+      const when = new Date(s.date).toLocaleDateString();
+      entries.push({
+        id: s.attachmentId,
+        label: `Settlement #${idx + 1} · ${when} · ${s.amount.toFixed(2)} ${tx.currency}`,
+      });
+    }
+  });
+  return entries;
+}
+
 export function TransactionList({ transactions, onDelete, onInitiateSettle }: TransactionListProps) {
   const { t } = useLanguage();
+  const [viewing, setViewing] = useState<AttachmentEntry[] | null>(null);
 
   if (transactions.length === 0) {
     return (
@@ -30,6 +50,7 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
   }
 
   return (
+    <>
     <ul className="space-y-3 pb-6">
       {transactions.map((tx) => {
         const isBorrowed = tx.type === 'borrowed';
@@ -90,11 +111,23 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
                       )}
                     </div>
                     {tx.note && <span className="text-xs text-gray-400 dark:text-gray-500 mt-1 line-clamp-1 italic">{tx.note}</span>}
-                    {(tx.attachmentId || (tx.settlements && tx.settlements.some(s => s.attachmentId))) && (
-                      <span className="flex items-center gap-1 text-xs text-indigo-500 mt-1 font-semibold">
-                        <Paperclip size={12} /> Has Attachment(s)
-                      </span>
-                    )}
+                    {(() => {
+                      const entries = collectAttachments(tx);
+                      if (entries.length === 0) return null;
+                      return (
+                        <button
+                          type="button"
+                          onPointerDownCapture={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setViewing(entries);
+                          }}
+                          className="self-start flex items-center gap-1 text-xs text-indigo-500 dark:text-fuchsia-400 mt-1 font-semibold hover:text-indigo-700 dark:hover:text-fuchsia-300 active:scale-95 transition"
+                        >
+                          <Paperclip size={12} /> View Attachment{entries.length > 1 ? `s (${entries.length})` : ''}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -103,5 +136,9 @@ export function TransactionList({ transactions, onDelete, onInitiateSettle }: Tr
         );
       })}
     </ul>
+      {viewing && (
+        <AttachmentViewer attachments={viewing} onClose={() => setViewing(null)} />
+      )}
+    </>
   );
 }
