@@ -45,6 +45,20 @@ export const translations = {
     shareCardNoteIOwe: 'I will settle up soon! 🤝',
     shareCardFooter: 'Generated via Borrow Manager',
 
+    // Share card button actions
+    sharePreparing: 'Preparing…',
+    shareAction: 'Share',
+    copyAction: 'Copy',
+    shareReceiptBtn: 'Share Receipt',
+    copyReceiptBtn: 'Copy Receipt',
+    preparingReceipt: 'Preparing receipt…',
+    settleAccount: 'Account',
+    settleType: 'Type',
+    settleOpened: 'Opened',
+    settleSettledDate: 'Settled',
+    settleFullySettled: 'Fully Settled',
+    settlePartiallySettled: 'Partially Settled',
+
     // TransactionList
     // TransactionList
     overdue: 'OVERDUE',
@@ -123,6 +137,20 @@ export const translations = {
     shareCardNoteOweMe: 'সুবিধা অনুযায়ী পরিশোধ করে দিও! 😇',
     shareCardNoteIOwe: 'আমি খুব শিঘ্রই দিয়ে দেব! 🤝',
     shareCardFooter: 'Borrow Manager থেকে তৈরি',
+
+    // Share card button actions
+    sharePreparing: 'প্রস্তুত হচ্ছে…',
+    shareAction: 'শেয়ার',
+    copyAction: 'কপি',
+    shareReceiptBtn: 'রিসিট শেয়ার',
+    copyReceiptBtn: 'রিসিট কপি',
+    preparingReceipt: 'রিসিট প্রস্তুত হচ্ছে…',
+    settleAccount: 'হিসাব',
+    settleType: 'ধরন',
+    settleOpened: 'শুরু',
+    settleSettledDate: 'পরিশোধ',
+    settleFullySettled: 'সম্পূর্ণ পরিশোধ',
+    settlePartiallySettled: 'আংশিক পরিশোধ',
 
     // TransactionList
     // TransactionList

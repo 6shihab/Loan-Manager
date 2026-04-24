@@ -1,10 +1,8 @@
 import { toBlob } from 'html-to-image';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 export type ShareOutcome = 'shared-image' | 'shared-text' | 'downloaded' | 'cancelled';
-
-interface Navigator {
-  canShare?: (data: { files?: File[] }) => boolean;
-}
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
@@ -21,12 +19,23 @@ function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
 }
 
-/**
- * Capture a DOM node as PNG and share via Web Share Level 2.
- * Falls back progressively: files → text → download.
- * Returns the outcome so callers can toast appropriately.
- * Throws only on capture failure; share failures are handled internally.
- */
+function isCapacitorNative(): boolean {
+  const cap = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return typeof cap !== 'undefined' && cap?.isNativePlatform?.() === true;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]); // strip "data:image/png;base64," prefix
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function shareReceiptImage(
   node: HTMLElement,
   filename: string,
@@ -37,8 +46,32 @@ export async function shareReceiptImage(
     throw new Error('Capture returned null blob');
   }
 
+  // Native Android: write PNG to cache then share via native intent
+  if (isCapacitorNative()) {
+    const base64 = await blobToBase64(blob);
+    await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+
+    const { uri } = await Filesystem.getUri({
+      path: filename,
+      directory: Directory.Cache,
+    });
+
+    try {
+      await Share.share({ title: filename, url: uri, dialogTitle: 'Share Receipt' });
+      return 'shared-image';
+    } catch (err) {
+      if (isAbortError(err)) return 'cancelled';
+      throw err;
+    }
+  }
+
+  // Web/desktop: Web Share API with file, fallback to text, then download
   const file = new File([blob], filename, { type: 'image/png' });
-  const nav = navigator as Navigator & typeof navigator;
+  const nav = navigator as typeof navigator & { canShare?: (data: { files?: File[] }) => boolean };
 
   if (typeof nav.share === 'function' && nav.canShare?.({ files: [file] })) {
     try {
@@ -46,7 +79,6 @@ export async function shareReceiptImage(
       return 'shared-image';
     } catch (err) {
       if (isAbortError(err)) return 'cancelled';
-      // fall through to text share
     }
   }
 
@@ -56,7 +88,6 @@ export async function shareReceiptImage(
       return 'shared-text';
     } catch (err) {
       if (isAbortError(err)) return 'cancelled';
-      // fall through to download
     }
   }
 

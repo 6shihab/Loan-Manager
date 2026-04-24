@@ -1,57 +1,64 @@
 import { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Share2, CheckCircle2, X, Copy, Loader2 } from 'lucide-react';
+import { Share2, X, Copy, Loader2, TrendingUp, TrendingDown } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Transaction } from '../types';
+import { PersonBalance } from '../types';
 import { shareReceiptImage } from '../utils/shareReceipt';
 import { useLanguage } from '../contexts/LanguageContext';
 
-interface SettlementShareCardProps {
-  receipt: {
-    tx: Transaction;
-    amount: number;
-    isFull: boolean;
-  };
+interface PersonBalanceShareCardProps {
+  balance: PersonBalance;
+  currency: string;
   onClose: () => void;
 }
 
-export function SettlementShareCard({ receipt, onClose }: SettlementShareCardProps) {
+export function PersonBalanceShareCard({ balance, currency, onClose }: PersonBalanceShareCardProps) {
   const { t } = useLanguage();
-  const { tx, amount, isFull } = receipt;
   const cardRef = useRef<HTMLDivElement>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
-  const verb = tx.type === 'borrowed' ? 'paid' : 'received';
-  const todayStr = new Date().toLocaleDateString();
+  const absNet = Math.abs(balance.net).toFixed(2);
+  const owesMe = balance.net > 0;
+
+  const sym =
+    currency === 'BDT' ? '৳' :
+    currency === 'USD' ? '$' :
+    currency === 'EUR' ? '€' :
+    currency === 'GBP' ? '£' :
+    currency === 'INR' ? '₹' : 'R$';
+
   const fallbackText =
-    `${t('settleFullySettled').replace('Fully ', '').replace('সম্পূর্ণ ', '')} Receipt\n\nI ${verb} ${tx.currency} ${amount.toFixed(2)} regarding the account of ${tx.person}.\n` +
-    `Status: ${isFull ? t('settleFullySettled') : t('settlePartiallySettled')}\nDate: ${todayStr}\n\n${t('shareCardFooter')}`;
+    `${owesMe ? t('shareCardTitleOweMe') : t('shareCardTitleIOwe')}\n\n` +
+    `${t('shareCardName')}: ${balance.person}\n` +
+    `${owesMe ? t('shareCardOweMeText') : t('shareCardIOweText')}: ${sym}${absNet}\n\n` +
+    `${owesMe ? t('shareCardNoteOweMe') : t('shareCardNoteIOwe')}\n\n` +
+    `${t('shareCardFooter')}`;
 
   const handleShare = async () => {
     if (!cardRef.current || isCapturing) return;
     setIsCapturing(true);
     try {
-      const safePerson = tx.person.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40) || 'receipt';
+      const safePerson = balance.person.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40) || 'balance';
       const datePart = new Date().toISOString().slice(0, 10);
-      const filename = `receipt-${safePerson}-${datePart}.png`;
+      const filename = `balance-${safePerson}-${datePart}.png`;
       const outcome = await shareReceiptImage(cardRef.current, filename, fallbackText);
       if (outcome === 'downloaded') {
-        toast('Receipt saved — attach it to your chat', { icon: '📥' });
+        toast('Balance card saved — attach it to your chat', { icon: '📥' });
       } else if (outcome === 'shared-text') {
         toast('Shared as text (image share unavailable)', { icon: '📝' });
       }
     } catch (err) {
-      console.error('Receipt capture failed', err);
-      toast.error('Image capture failed — sending text receipt');
+      console.error('Balance card capture failed', err);
+      toast.error('Image capture failed — sending text');
       try {
         if (typeof navigator.share === 'function') {
           await navigator.share({ text: fallbackText });
         } else {
           await navigator.clipboard.writeText(fallbackText);
-          toast('Receipt copied to clipboard', { icon: '📋' });
+          toast('Copied to clipboard', { icon: '📋' });
         }
       } catch {
-        // swallow — user closed the sheet
+        // user dismissed
       }
     } finally {
       setIsCapturing(false);
@@ -86,35 +93,43 @@ export function SettlementShareCard({ receipt, onClose }: SettlementShareCardPro
             <X size={18} />
           </button>
 
-          <div className="p-8 text-center bg-gradient-to-br from-indigo-50 to-fuchsia-50 dark:from-indigo-900/20 dark:to-fuchsia-900/20 border-b border-gray-100 dark:border-gray-800">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 size={32} className="text-emerald-500" />
+          <div className={`p-8 text-center border-b border-gray-100 dark:border-gray-800 ${
+            owesMe
+              ? 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20'
+              : 'bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-900/20 dark:to-orange-900/20'
+          }`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              owesMe
+                ? 'bg-emerald-100 dark:bg-emerald-500/20'
+                : 'bg-rose-100 dark:bg-rose-500/20'
+            }`}>
+              {owesMe
+                ? <TrendingUp size={32} className="text-emerald-500" />
+                : <TrendingDown size={32} className="text-rose-500" />
+              }
             </div>
             <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-1">
-              {tx.currency} {amount.toFixed(2)}
+              {sym}{absNet}
             </h2>
-            <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
-              {isFull ? t('settleFullySettled') : t('settlePartiallySettled')}
+            <p className="text-sm font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+              {owesMe ? t('shareCardTitleOweMe') : t('shareCardTitleIOwe')}
             </p>
           </div>
 
           <div className="p-6 space-y-4">
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{t('settleAccount')}</span>
-              <span className="font-bold text-gray-900 dark:text-white">{tx.person}</span>
+              <span className="text-gray-500 dark:text-gray-400">{t('shareCardName')}</span>
+              <span className="font-bold text-gray-900 dark:text-white">{balance.person}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{t('settleType')}</span>
-              <span className="font-bold text-gray-900 dark:text-white capitalize">{tx.type}</span>
+              <span className="text-gray-500 dark:text-gray-400">{owesMe ? t('shareCardOweMeText') : t('shareCardIOweText')}</span>
+              <span className={`font-bold ${owesMe ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {sym}{absNet}
+              </span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{t('settleOpened')}</span>
-              <span className="font-bold text-gray-900 dark:text-white">{new Date(tx.date).toLocaleDateString()}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-gray-500 dark:text-gray-400">{t('settleSettledDate')}</span>
-              <span className="font-bold text-gray-900 dark:text-white">{todayStr}</span>
-            </div>
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500 italic pt-1">
+              {owesMe ? t('shareCardNoteOweMe') : t('shareCardNoteIOwe')}
+            </p>
             <p className="text-[10px] text-center uppercase tracking-widest text-gray-400 dark:text-gray-600 font-bold pt-2">
               {t('shareCardFooter')}
             </p>
@@ -131,12 +146,12 @@ export function SettlementShareCard({ receipt, onClose }: SettlementShareCardPro
             {isCapturing ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                {t('preparingReceipt')}
+                {t('sharePreparing')}
               </>
             ) : (
               <>
                 {typeof navigator.share === 'function' ? <Share2 size={18} /> : <Copy size={18} />}
-                {typeof navigator.share === 'function' ? t('shareReceiptBtn') : t('copyReceiptBtn')}
+                {typeof navigator.share === 'function' ? t('shareAction') : t('copyAction')}
               </>
             )}
           </button>

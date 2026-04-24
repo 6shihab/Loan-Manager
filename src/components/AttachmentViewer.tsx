@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Download, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import { getAttachment } from '../utils/storageDB';
 
 export interface AttachmentEntry {
@@ -23,10 +25,25 @@ interface LoadedAttachment {
   isImage: boolean;
 }
 
+function isCapacitorNative(): boolean {
+  const cap = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return typeof cap !== 'undefined' && cap?.isNativePlatform?.() === true;
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function AttachmentViewer({ attachments, onClose }: AttachmentViewerProps) {
   const [loaded, setLoaded] = useState<LoadedAttachment[]>([]);
   const [missing, setMissing] = useState<AttachmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +92,34 @@ export function AttachmentViewer({ attachments, onClose }: AttachmentViewerProps
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleSave = async (att: LoadedAttachment) => {
+    if (savingId) return;
+    setSavingId(att.id);
+    try {
+      if (isCapacitorNative()) {
+        // Android WebView can't use <a download> — write to cache then share natively
+        const response = await fetch(att.url);
+        const blob = await response.blob();
+        const base64 = await blobToBase64(blob);
+        await Filesystem.writeFile({ path: att.name, data: base64, directory: Directory.Cache });
+        const { uri } = await Filesystem.getUri({ path: att.name, directory: Directory.Cache });
+        await Share.share({ title: att.name, url: uri, dialogTitle: 'Save Attachment' });
+      } else {
+        // Web: programmatic anchor download
+        const a = document.createElement('a');
+        a.href = att.url;
+        a.download = att.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (err) {
+      console.error('Download failed', err);
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
@@ -134,13 +179,17 @@ export function AttachmentViewer({ attachments, onClose }: AttachmentViewerProps
                     {att.type || 'unknown'} · {formatSize(att.size)}
                   </div>
                 </div>
-                <a
-                  href={att.url}
-                  download={att.name}
-                  className="ml-3 flex items-center gap-1 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-fuchsia-500/20 transition-colors shrink-0"
+                <button
+                  onClick={() => handleSave(att)}
+                  disabled={savingId === att.id}
+                  className="ml-3 flex items-center gap-1 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-600 dark:bg-fuchsia-500/10 dark:text-fuchsia-400 text-xs font-semibold hover:bg-indigo-100 dark:hover:bg-fuchsia-500/20 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-wait"
                 >
-                  <Download size={14} /> Save
-                </a>
+                  {savingId === att.id
+                    ? <Loader2 size={14} className="animate-spin" />
+                    : <Download size={14} />
+                  }
+                  Save
+                </button>
               </div>
 
               <div className="p-3 flex items-center justify-center">
@@ -157,15 +206,13 @@ export function AttachmentViewer({ attachments, onClose }: AttachmentViewerProps
                     className="w-full h-[55vh] rounded-lg bg-white"
                   />
                 ) : (
-                  <a
-                    href={att.url}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => handleSave(att)}
                     className="flex flex-col items-center justify-center w-full py-10 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-fuchsia-400 transition"
                   >
                     <FileText size={40} className="mb-2" />
                     <span className="text-sm font-medium">Open file</span>
-                  </a>
+                  </button>
                 )}
               </div>
             </div>

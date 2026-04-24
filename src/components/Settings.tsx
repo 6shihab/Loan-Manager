@@ -1,5 +1,6 @@
 import { Download, Moon, Sun, Trash2, Lock, Fingerprint, ShieldCheck } from 'lucide-react';
-import { downloadTransactionsCSV } from '../utils/exportUtils';
+import toast from 'react-hot-toast';
+import { shareCSV } from '../utils/exportUtils';
 import { Transaction } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { AppLanguage } from '../utils/translations';
@@ -92,7 +93,14 @@ export function Settings({ isDarkMode, setIsDarkMode, defaultCurrency, setDefaul
           
           <div className="space-y-4">
             <button
-              onClick={() => downloadTransactionsCSV(transactions)}
+              onClick={async () => {
+                try {
+                  const outcome = await shareCSV(transactions);
+                  if (outcome === 'downloaded') toast.success('CSV downloaded');
+                } catch {
+                  toast.error('Export failed. Please try again.');
+                }
+              }}
               className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
             >
               <span className="font-semibold text-gray-800 dark:text-gray-200">{t('exportCSV')}</span>
