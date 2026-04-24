@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { PlusCircle, LayoutDashboard, History, Settings as SettingsIcon, Trash2 } from 'lucide-react';
 import { useTransactions } from './hooks/useTransactions';
 import { useAppLock } from './hooks/useAppLock';
+import { useAuth } from './hooks/useAuth';
+import { useSync } from './hooks/useSync';
 import { Dashboard } from './components/Dashboard';
 import { TransactionForm } from './components/TransactionForm';
 import { Timeline } from './components/Timeline';
@@ -23,17 +25,20 @@ function App() {
   const [settlingTx, setSettlingTx] = useState<any>(null);
   const [sharedSettlement, setSharedSettlement] = useState<{ tx: any, amount: number, isFull: boolean } | null>(null);
   
-  const { 
-    transactions, 
+  const {
+    transactions,
     trashTransactions,
-    addTransaction, 
-    deleteTransaction, 
-    editTransaction, 
+    addTransaction,
+    deleteTransaction,
+    editTransaction,
     clearTransactions,
     restoreTransaction,
-    hardDeleteTransaction
+    hardDeleteTransaction,
+    reloadFromStorage,
   } = useTransactions();
   const appLock = useAppLock();
+  const { user, signIn, signOut } = useAuth();
+  const { isSyncing, lastSynced, syncNow } = useSync(user, reloadFromStorage);
   const { t } = useLanguage();
   const existingNames = Array.from(new Set(transactions.map(t => t.person)));
   
@@ -213,12 +218,12 @@ function App() {
         ) : activeTab === 'timeline' ? (
           <Timeline transactions={transactions} />
         ) : (
-          <Settings 
-            isDarkMode={isDarkMode} 
-            setIsDarkMode={setIsDarkMode} 
+          <Settings
+            isDarkMode={isDarkMode}
+            setIsDarkMode={setIsDarkMode}
             defaultCurrency={defaultCurrency}
             setDefaultCurrency={setDefaultCurrency}
-            transactions={transactions} 
+            transactions={transactions}
             onClearData={clearTransactions}
             isPinEnabled={appLock.isPinEnabled}
             biometricEnabled={appLock.biometricEnabled}
@@ -227,6 +232,12 @@ function App() {
             onSetupPin={() => appLock.setIsSettingUp(true)}
             onRemovePin={appLock.removePin}
             onToggleBiometric={appLock.toggleBiometric}
+            user={user}
+            onSignIn={signIn}
+            onSignOut={signOut}
+            isSyncing={isSyncing}
+            lastSynced={lastSynced}
+            onSyncNow={syncNow}
           />
         )}
       </main>

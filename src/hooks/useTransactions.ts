@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Transaction, TransactionStatus } from '../types';
 import { deleteAttachment } from '../utils/storageDB';
 
@@ -126,14 +126,27 @@ export function useTransactions() {
     setTransactions([]);
   };
 
-  return { 
-    transactions, 
+  const reloadFromStorage = useCallback(() => {
+    const saved = localStorage.getItem('bm_transactions');
+    const trash = localStorage.getItem('bm_trash_transactions');
+    setTransactions(saved ? JSON.parse(saved).map((t: any) => ({
+      ...t,
+      currency: t.currency || 'USD',
+      status: t.status || 'pending',
+      tags: t.tags || [],
+    })) : []);
+    setTrashTransactions(trash ? JSON.parse(trash) : []);
+  }, []);
+
+  return {
+    transactions,
     trashTransactions,
-    addTransaction, 
-    deleteTransaction, 
-    editTransaction, 
+    addTransaction,
+    deleteTransaction,
+    editTransaction,
     clearTransactions,
     restoreTransaction,
-    hardDeleteTransaction
+    hardDeleteTransaction,
+    reloadFromStorage,
   };
 }

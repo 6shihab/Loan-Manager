@@ -38,3 +38,5 @@ capacitor.config.json
 
 .claude/
 docs/
+.env
+android/app/google-services.json

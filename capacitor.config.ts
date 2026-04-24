@@ -9,7 +9,14 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#0a0a1a',
-  }
+  },
+  plugins: {
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '1024520202880-imueoaoe0qgrlcsllvr5sc7vvs35vlhl.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true,
+    },
+  },
 };
 
 export default config;
